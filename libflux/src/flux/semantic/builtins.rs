@@ -26,6 +26,12 @@ pub fn builtins() -> Builtins<'static> {
                 // This is a "provide exactly one argument" function
                 // https://github.com/influxdata/flux/issues/2249
                 "from" => Node::Builtin("forall [t0] where t0: Row (?csv: string, ?file: string) -> [t0]"),
+                "to" => Node::Builtin(r#"
+                    forall [t0, t1] where t0: Row, t1: Row (
+                        <-tables: [t0],
+                        file: string
+                    ) -> [t1]
+                "#),
             }),
             "date" => Node::Package(maplit::hashmap! {
                  "second" => Node::Builtin("forall [] (t: time) -> int"),
