@@ -1,0 +1,24 @@
+include 'tableflux.lm'
+
+export result_ok: bool
+export result_flux: str
+export result_log: str
+
+parse TableFlux: tableflux [argv->head_el->value]
+
+if !TableFlux {
+	result_ok = false
+	result_flux = ""
+	result_log = error
+}
+else {
+	# By default these go to stdout and stderr, collect them instead.
+	out = new stream()
+	log = new stream()
+
+	transform( TableFlux )
+
+	result_ok = true
+	result_flux = out->tree
+	result_log = log->tree
+}
