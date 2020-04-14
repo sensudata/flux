@@ -3,7 +3,7 @@ include 'tableflux.lm'
 parse TableFlux: tableflux [stdin]
 
 if !TableFlux {
-	send stderr "[error]
+	send log "[error]
 	exit(1)
 }
 

@@ -1,5 +1,5 @@
 namespace flux
-	include '../flux/flux.lm'
+	include 'flux.lm'
 end
 
 include 'influxql.lm'

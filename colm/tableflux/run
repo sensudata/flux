@@ -92,25 +92,14 @@ case "$1" in
 		./run query $OUTPUT
 	;;
 	test)
-		#
-		# On the first run this captures output and uses it as expected output.
-		# If output needs to be updated, delete the expected output files and
-		# re-run.
-		#
-
 		shift 1
 		[ -z "$*" ] && set -- query??.flux
 		for QUERY do
 			LOG=working/${QUERY%.flux}-log.txt
 			RESULTS=working/${QUERY%.flux}-results.txt
-			EXPECTED=working/${QUERY%.flux}-expected.txt
+			EXPECTED=expected/${QUERY%.flux}-expected.txt
 			./run tableflux $QUERY > $RESULTS 2> $LOG
-			if [ '!' -f $EXPECTED ]; then
-				echo "notice: using $RESULTS as expected output for $QUERY"
-				cat $RESULTS > $EXPECTED
-			else
-				diff -u $EXPECTED $RESULTS
-			fi
+			diff -u $EXPECTED $RESULTS
 		done
 	;;
 	*)

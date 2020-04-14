@@ -1,5 +1,5 @@
 
-SUBDIRS = flux influxql tableflux
+SUBDIRS = parseflux influxql tableflux
 
 all:
 	for d in $(SUBDIRS); do cd $$d && { $(MAKE) all; cd ..; }; done

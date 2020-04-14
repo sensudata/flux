@@ -4,8 +4,8 @@ all: @BINARY_TARGET@
 
 build-binary: parseflux
 
-parseflux: parseflux.lm ../flux/flux.lm $(COLM)
-	$(COLM) -o $@ $<
+parseflux: parseflux.lm ../flux.lm $(COLM)
+	$(COLM) -I.. -o $@ $<
 
 clean: clean-binary
 

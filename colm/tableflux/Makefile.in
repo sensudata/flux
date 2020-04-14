@@ -5,14 +5,14 @@ all: @BINARY_TARGET@ @INTERFACE_TARGET@
 
 build-binary: tableflux
 
-tableflux: program.lm tableflux.lm flux.lm $(COLM)
-	$(COLM) -o $@ $<
+tableflux: program.lm tableflux.lm ../flux.lm $(COLM)
+	$(COLM) -I.. -o $@ $<
 	rm -f tableflux.c
 
 build-interface: embedded.c call.go call.c
 
-embedded.c: embedded.lm tableflux.lm flux.lm $(COLM)
-	$(COLM) -c -o $@ $<
+embedded.c: embedded.lm tableflux.lm ../flux.lm $(COLM)
+	$(COLM) -I.. -c -o $@ $<
 
 # Ensure Makefile is rewritten when its source changes.
 call.go: call.go.in Makefile

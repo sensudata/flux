@@ -1,5 +1,19 @@
 
+# This is a flux grammar modified in three ways.
+#   1. The bucket_query shorthand added to unary_expression
+#   2. The arg {} shorthand syntax added property.
+#   3. A plain expression added to property (covers existing identifier form as
+#   well)
+
 include 'flux.lm'
+
+lex
+	literal `@
+
+	ignore / '//' [^\n]* '\n' /
+	ignore / [ \t\n\r]+ /
+
+end
 
 #
 # Flux grammar modifications
@@ -24,11 +38,35 @@ def bucket_query
 	[`@ Bucket: identifier `. Measurement: identifier
 		OptPredBlock: opt_pred_block]
 
-def tableflux_property
-	[identifier `: expression]
-|	[string_lit `: expression]
-|	[expression]
-|	[`{ opt_predicate_list `}]
+#
+# Redefinition of unary expression to include bucket_query.
+#
+redef unary_expression
+	[...]
+|	[bucket_query]
+
+#
+# Redefinition of property to allow the {} predicate syntax, and a plain
+# expression as an argument to a function call. Unsing unique empty productions
+# to force ordered choice and get a predicatable disambiguation.
+#
+redef property
+	[...]
+|	[E1 `{ opt_predicate_list `}]
+|	[E2 expression]
+
+def E1 []
+def E2 []
+
+def tableflux
+	[flux]
+
+#
+# Transformation below
+#
+
+global log: stream = stderr
+global out: stream = stdout
 
 struct column
 	Identifier: identifier
@@ -81,7 +119,7 @@ bool checkTime( Shorthand: shorthand, CE: comparison_expression )
 			&& ( match Op "<" || match Op "<=" )
 	{
 		Shorthand->TimeConstraint = true
-		Shorthand->Stop = parse expression [Rhs]
+		Shorthand->Stop = parse expression [^Rhs]
 		return true
 	}
 
@@ -89,7 +127,7 @@ bool checkTime( Shorthand: shorthand, CE: comparison_expression )
 			&& ( match Op ">" || match Op ">=" )
 	{
 		Shorthand->TimeConstraint = true
-		Shorthand->Start = parse expression [Rhs]
+		Shorthand->Start = parse expression [^Rhs]
 		return true
 	}
 
@@ -288,12 +326,12 @@ void generateAggregate( N: int, OPL: opt_predicate_list,
 	for AggFn: agg_fn in Aggregate->AggFnList {
 		Keep: expression_list
 			Keep = parse expression_list
-				"\"[AggFn->Column]\"
+				"\"[^AggFn->Column]\"
 
 		if Aggregate->By {
 			match Aggregate->By [AF: expression AR: comma_expression*]
 			Keep = parse expression_list
-				"[Keep], [AF AR]"
+				"[^Keep], [^AF ^AR]"
 		}
 
 		if Aggregate->Window {
@@ -305,9 +343,9 @@ void generateAggregate( N: int, OPL: opt_predicate_list,
 		send out
 			"	local_[AggFn->Local] = grouping
 			"		|> keep( columns: \[[Keep]\] )
-			"		|> rename(columns: {[AggFn->Column]: \"[AggFn->Fn]_[AggFn->Column]\"} )
+			"		|> rename( columns: {[AggFn->Column]: \"[AggFn->Fn]_[AggFn->Column]\"} )
 			"		|> [AggFn->Fn]( column: \"[AggFn->Fn]_[AggFn->Column]\" )
-			"		|> map( fn: (r) => ({r with __id: 1}) )
+			"		|> map( fn: (r) => ( {r with __id: 1} ) )
 			"		|> group()
 			"		|> cumulativeSum( columns: \[\"__id\"\] )
 
@@ -347,7 +385,7 @@ void generateAggregate( N: int, OPL: opt_predicate_list,
 
 	if Aggregate->Window {
 		send out
-			'		|> rename( columns: { _stop: "time" } )
+			'		|> rename( columns: { _stop: "_time" } )
 	}
 
 	send out
@@ -389,7 +427,8 @@ void selectGroupingWindowing( By: expression_list, Window: expression )
 	if ( Window ) {
 		send out
 			"		|> window( every: [Window] )
-			"		|> drop( columns: \[\"_start\"\] )
+			"		|> drop( columns: \[\"_start\", \"_time\"\] )
+			"		|> rename( columns: { _stop: \"_time\" } )
 	}
 }
 
@@ -466,6 +505,20 @@ void generateSelectFunc( N: int, Fn: identifier,
 
 }
 
+void generateSelectColumn( N: int, Fn: identifier, Column: identifier,
+		By: expression_list, Window: expression )
+{
+	send out
+		"select_[N] = (tables=<-) => {
+		"	return tables
+
+	selectGroupingWindowing( By, Window )
+
+	send out
+		"		|> [Fn]( column: \"[Column]\" )
+		"		|> rename( columns: { _value: \"[Column]\" } )
+		"}
+}
 void generateSelectColOpt( N: int, Fn: identifier, Column: identifier,
 		P1: str, Arg1: expression, By: expression_list, Window: expression )
 {
@@ -497,16 +550,22 @@ void generateSelect( N: int, E: expression, Rest: comma_property* )
 	}
 
 	if match E
+		[Fn: identifier]
+		&& ( Fn.data == "first" || Fn.data == "last" )
+	{
+		generateSelectFunc( N, Fn, By, Window )
+	}
+	else if match E
 		[Fn: identifier `( Column: identifier `)]
 		&& ( Fn.data == "min" || Fn.data == "max" )
 	{
 		generateSelectTF( N, Fn, Column, By, Window )
 	}
 	else if match E
-		[Fn: identifier]
-		&& ( Fn.data == "first" || Fn.data == "last" )
+		[Fn: identifier `( Column: identifier `)]
+		&& ( Fn.data == "distinct" )
 	{
-		generateSelectFunc( N, Fn, By, Window )
+		generateSelectColumn( N, Fn, Column, By, Window )
 	}
 	else if match E
 		"[Fn: identifier]( [Column: identifier], [SelectN: int_lit] )
@@ -574,10 +633,27 @@ void transform( TableFlux: ref<tableflux> )
 				"select_[N]()
 			N = N + 1
 		}
+
+		if match UE
+			"timeShift( [E: expression] )
+		{
+			UE = parse unary_expression
+				"timeShift( duration: [E], columns: \[\"_time\"\] )
+		}
+
+		if match UE
+			"count( [Identifier: identifier] [Rest: comma_property*] )
+		{
+			parse OPL: opt_predicate_list "count( [Identifier] )"
+
+			generateAggregate( N, OPL, Rest )
+
+			UE = parse unary_expression
+				"aggregate_[N]()
+			N = N + 1
+		}
 	}
 
 	send out "[TableFlux]
 }
 
-global log: stream = stderr
-global out: stream = stdout

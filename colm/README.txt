@@ -3,9 +3,9 @@
 
 #
 # This directory contains some colm programs that can be used standalone, or in
-# some cases, embedded into the Go codebase.
+# the case of tableflux, embedded into the Go codebase.
 #
-#  * flux: contains the primary flux grammar and a parsing driver
+#  * parseflux: contains a plain parsing driver for pure flux
 #
 #  * influxql: contains timeboxed experiment to translate influxql -> flux. Very
 #    far from complete.
@@ -57,4 +57,19 @@ make
 # --enable-go-interface flag and rebuild.
 #
 
+#
+# To use the standalone tableflux program:
+#
+cd tableflux
 
+# set ORG, TOKEN and INFLUX (full path to command)
+vim .fluxrc
+
+# make a bucket called tableflux
+./run create tableflux
+
+# write the example data
+./run write tableflux data3.pts
+
+# try some queries
+./run tableflux query17.flux

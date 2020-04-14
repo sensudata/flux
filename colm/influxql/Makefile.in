@@ -4,8 +4,8 @@ all: @BINARY_TARGET@
 
 build-binary: influxql
 
-influxql: transform.lm ../flux/flux.lm influxql.lm $(COLM)
-	$(COLM) -o $@ $<
+influxql: transform.lm ../flux.lm influxql.lm $(COLM)
+	$(COLM) -I.. -o $@ $<
 
 clean: clean-binary
 
