@@ -60,6 +60,17 @@ else
 	INTERFACE_TARGET=clean-interface
 fi
 
+#
+# Verify we got the expected version of colm.
+#
+EXPECTED=0.14.1
+COLM_VERSION=`$WITH_COLM/bin/colm --version | awk 'NR == 1 { print $3; }'`
+if test "$COLM_VERSION" != $EXPECTED; then
+	echo "error: expected colm version $EXPECTED but got:" >&2
+	$WITH_COLM/bin/colm --version | sed 's/^/    /' >&2
+	exit 1
+fi
+
 BINARY_TARGET=""
 if test -n "$WITH_COLM"; then
 	BINARY_TARGET=build-binary

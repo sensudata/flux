@@ -30,15 +30,18 @@ ORIG_PWD=$PWD
 # 1. Install colm
 #
 
-DEVEL=$HOME/devel
+BUILD=$HOME/build
 INST=$HOME/pkgs
+VERSION=0.14.1
 
-cd $DEVEL
-git clone https://github.com/adrian-thurston/colm.git
+mkdir -p $BUILD $INST
 
-cd colm
-./autogen.sh
-./configure --prefix=$INST/colm --disable-manual
+cd $BUILD
+wget https://www.colm.net/files/colm/colm-$VERSION.tar.gz
+tar -xzf colm-$VERSION.tar.gz
+cd colm-$VERSION
+
+./configure --prefix=$INST/colm-$VERSION --disable-manual
 make install
 
 #
@@ -46,8 +49,10 @@ make install
 #
 
 cd $ORIG_PWD
-./configure --with-colm=$INST/colm --enable-go-interface
+./configure --with-colm=$INST/colm-$VERSION --enable-go-interface
 make
+
+exit
 
 #
 # After this you should be able to build flux or influxdb (with go mod rewrite
