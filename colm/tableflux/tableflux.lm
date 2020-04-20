@@ -1,9 +1,8 @@
 
-# This is a flux grammar modified in three ways.
-#   1. The bucket_query shorthand added to unary_expression
-#   2. The arg {} shorthand syntax added property.
-#   3. A plain expression added to property (covers existing identifier form as
-#   well)
+# This is a flux grammar modified in three ways:
+#   1. The bucket_query shorthand is added to unary_expression.
+#   2. The argument {} shorthand syntax is added to property.
+#   3. A plain expression is added to property.
 
 include 'flux.lm'
 
@@ -12,7 +11,6 @@ lex
 
 	ignore / '//' [^\n]* '\n' /
 	ignore / [ \t\n\r]+ /
-
 end
 
 #
@@ -65,8 +63,9 @@ def tableflux
 # Transformation below
 #
 
-global log: stream = stderr
 global out: stream = stdout
+global log: stream = stderr
+global transform_error: str = ""
 
 struct column
 	Identifier: identifier
@@ -655,5 +654,32 @@ void transform( TableFlux: ref<tableflux> )
 	}
 
 	send out "[TableFlux]
+
+	checkResult( TableFlux )
 }
 
+void checkResult( TableFlux: tableflux )
+{
+	# Check for leftover expressions that did not transform.
+	for UE: unary_expression in TableFlux {
+		if match UE [BQ: bucket_query]
+			transform_error =
+				"[BQ.Bucket.line]:[BQ.Bucket.col] "
+				"failed to transform bucket query: [BQ]"
+	}
+
+	for Property: property in TableFlux {
+		if match Property
+			[E1 `{ opt_predicate_list `}]
+		|| match Property
+			[E2 expression]
+		{
+			transform_error =
+				#"[Property.line]:[Property.col] "
+				"failed to transform tableflux property: [Property]"
+		}
+	}
+
+	if transform_error.length > 0
+		send log "transformation failed: [transform_error]
+}

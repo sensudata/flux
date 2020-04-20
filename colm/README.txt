@@ -78,3 +78,8 @@ vim .fluxrc
 
 # try some queries
 ./run tableflux query17.flux
+
+#
+# To just see the output of the transformation from tableflux to flux:
+#
+./tableflux < tableflux.flux

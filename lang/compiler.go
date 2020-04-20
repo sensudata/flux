@@ -169,9 +169,9 @@ func (c FluxCompiler) Compile(ctx context.Context) (flux.Program, error) {
 	query := c.Query
 
 	if tableflux.Enabled() {
-		ok, flux, log := tableflux.TableFlux(query)
+		ok, flux, err, _ := tableflux.TableFlux(query)
 		if !ok {
-			return nil, errors.Newf(codes.Invalid, "tableflux compile failed, log is:\n%s", log)
+			return nil, errors.Newf(codes.Invalid, "tableflux transformation failed: %s", err)
 		}
 		query = flux
 	}

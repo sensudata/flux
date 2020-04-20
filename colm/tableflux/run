@@ -86,10 +86,13 @@ case "$1" in
 		cat $QUERY >&2
 		echo "+ transforming:" >&2
 		./tableflux < $QUERY > $OUTPUT
+		LAST=$?
 		echo "+ output:" >&2
 		cat $OUTPUT >&2
-		echo "+ results:" >&2
-		./run query $OUTPUT
+		if test $LAST == 0; then
+			echo "+ results:" >&2
+			./run query $OUTPUT
+		fi
 	;;
 	test)
 		shift 1
